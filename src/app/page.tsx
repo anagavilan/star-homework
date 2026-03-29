@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { 
   Plus, 
   Search, 
@@ -18,6 +18,7 @@ import { es } from "date-fns/locale";
 import { cn } from "@/lib/utils";
 import type { Task } from "@/types";
 
+import { useSession, signIn, signOut } from "next-auth/react";
 import { TaskModal } from "@/components/TaskModal";
 
 // Mock Data for Phase 1
@@ -34,45 +35,13 @@ const INITIAL_TASKS: Task[] = [
     createdAt: new Date(),
     updatedAt: new Date(),
   },
-  {
-    id: "2",
-    origin: "MANUAL",
-    subject: "Matemáticas",
-    title: "Ejercicios de Integrales",
-    dueDate: new Date(),
-    status: "Asignada",
-    info: "Páginas 45-50 del libro",
-    userId: "user_1",
-    createdAt: new Date(),
-    updatedAt: new Date(),
-  },
-  {
-    id: "3",
-    origin: "CLASSROOM",
-    subject: "Historia",
-    title: "Comentario de texto: Revolución Francesa",
-    dueDate: addDays(new Date(), 3),
-    status: "Entregada",
-    info: "Analizar el texto de Robespierre",
-    userId: "user_1",
-    createdAt: new Date(),
-    updatedAt: new Date(),
-  },
-  {
-    id: "4",
-    origin: "MANUAL",
-    subject: "Inglés",
-    title: "Reading Comprehension",
-    dueDate: addDays(new Date(), 7),
-    status: "Asignada",
-    userId: "user_1",
-    createdAt: new Date(),
-    updatedAt: new Date(),
-  }
+  // ... more tasks
 ];
 
 export default function HomePage() {
-  const [tasks, setTasks] = useState<Task[]>(INITIAL_TASKS);
+  const { data: session, status: authStatus } = useSession();
+  const [tasks, setTasks] = useState<Task[]>([]);
+  const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
   const [filterStatus, setFilterStatus] = useState<string>("All");
   const [viewMode, setViewMode] = useState<"list" | "grid">("list");
@@ -80,6 +49,29 @@ export default function HomePage() {
   // Modal State
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingTask, setEditingTask] = useState<Task | null>(null);
+
+  // Initial Fetch & Sync
+  useEffect(() => {
+    async function init() {
+      if (session) {
+        setLoading(true);
+        try {
+          // Trigger sync on login
+          await fetch("/api/sync", { method: "POST" });
+          
+          // Fetch tasks from DB
+          const res = await fetch("/api/tasks");
+          const data = await res.json();
+          setTasks(data);
+        } catch (error) {
+          console.error("Initialization failed:", error);
+        } finally {
+          setLoading(false);
+        }
+      }
+    }
+    init();
+  }, [session]);
 
   const filteredTasks = tasks.filter(task => {
     const matchesSearch = task.title.toLowerCase().includes(searchQuery.toLowerCase()) || 
@@ -89,38 +81,88 @@ export default function HomePage() {
   }).sort((a, b) => {
     if (!a.dueDate) return 1;
     if (!b.dueDate) return -1;
-    return a.dueDate.getTime() - b.dueDate.getTime();
+    return new Date(a.dueDate).getTime() - new Date(b.dueDate).getTime();
   });
 
-  const handleSaveTask = (taskData: Partial<Task>) => {
+  const handleSaveTask = async (taskData: Partial<Task>) => {
     if (editingTask) {
       // Edit
-      setTasks(prev => prev.map(t => t.id === editingTask.id ? { ...t, ...taskData } as Task : t));
+      const res = await fetch(`/api/tasks/${editingTask.id}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(taskData),
+      });
+      const updated = await res.json();
+      setTasks(prev => prev.map(t => t.id === updated.id ? updated : t));
     } else {
       // Add
-      const newTask: Task = {
-        id: Math.random().toString(36).substr(2, 9),
-        ...taskData as any,
-        userId: "user_1",
-        createdAt: new Date(),
-        updatedAt: new Date(),
-      };
+      const res = await fetch("/api/tasks", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(taskData),
+      });
+      const newTask = await res.json();
       setTasks(prev => [...prev, newTask]);
     }
   };
 
-  const handleDeleteTask = (id: string) => {
+  const handleDeleteTask = async (id: string) => {
+    await fetch(`/api/tasks/${id}`, { method: "DELETE" });
     setTasks(prev => prev.filter(t => t.id !== id));
   };
+
+  if (authStatus === "loading" || (session && loading)) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-background">
+        <motion.div 
+          animate={{ scale: [1, 1.1, 1] }} 
+          transition={{ repeat: Infinity, duration: 2 }}
+          className="text-primary font-bold text-2xl"
+        >
+          StarHomeWork
+        </motion.div>
+      </div>
+    );
+  }
+
+  if (!session) {
+    return (
+      <main className="min-h-screen bg-background flex flex-col items-center justify-center p-6 text-center">
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="max-w-md"
+        >
+          <div className="w-20 h-20 bg-primary/10 rounded-[2rem] flex items-center justify-center mx-auto mb-8 rotate-12">
+            <BookOpen className="w-10 h-10 text-primary" />
+          </div>
+          <h1 className="text-4xl font-extrabold mb-4 tracking-tight">Organiza tus deberes con <span className="gradient-text">StarHomeWork</span></h1>
+          <p className="text-muted-foreground mb-10 text-lg leading-relaxed">
+            Unifica tus tareas de Google Classroom y las tuyas propias en una sola lista inteligente.
+          </p>
+          <button 
+            onClick={() => signIn("google")}
+            className="w-full bg-primary text-primary-foreground py-4 rounded-2xl font-bold shadow-xl shadow-primary/20 hover:scale-[1.02] transition-transform active:scale-95 flex items-center justify-center gap-3 text-lg"
+          >
+            <img src="https://authjs.dev/img/providers/google.svg" className="w-6 h-6" alt="Google" />
+            Empieza con Google
+          </button>
+          <p className="mt-6 text-sm text-muted-foreground">
+            Sincronización instantánea con tus clases.
+          </p>
+        </motion.div>
+      </main>
+    );
+  }
 
   return (
     <main className="min-h-screen bg-background pb-20">
       {/* Premium Header */}
       <header className="sticky top-0 z-40 w-full border-b bg-background/80 backdrop-blur-md">
         <div className="container mx-auto px-4 h-16 flex items-center justify-between">
-          <h1 className="text-xl font-bold gradient-text">StarHomeWork</h1>
-          <div className="flex items-center gap-2">
-            <div className="relative hidden sm:block">
+          <div className="flex items-center gap-4">
+            <h1 className="text-xl font-bold gradient-text">StarHomeWork</h1>
+            <div className="relative hidden lg:block">
               <Search className="absolute left-3 top-2.5 w-4 h-4 text-muted-foreground" />
               <input 
                 type="text"
@@ -130,6 +172,9 @@ export default function HomePage() {
                 className="pl-9 pr-4 py-2 bg-muted/50 border border-transparent focus:border-primary/30 focus:bg-background rounded-full outline-none transition-all w-64"
               />
             </div>
+          </div>
+          
+          <div className="flex items-center gap-3">
             <button 
               onClick={() => {
                 setEditingTask(null);
@@ -139,6 +184,14 @@ export default function HomePage() {
             >
               <Plus className="w-5 h-5" />
               <span className="hidden sm:inline">Nueva Tarea</span>
+            </button>
+            <div className="h-8 w-[1px] bg-border mx-1" />
+            <button 
+              onClick={() => signOut()}
+              className="w-10 h-10 rounded-full overflow-hidden border-2 border-primary/20 hover:border-primary transition-colors"
+              title="Cerrar sesión"
+            >
+              <img src={session.user?.image || ""} alt={session.user?.name || ""} className="w-full h-full object-cover" />
             </button>
           </div>
         </div>

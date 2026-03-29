@@ -1,36 +1,39 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# StarHomeWork
 
-## Getting Started
+Unifica tus tareas de Google Classroom y las tuyas propias en una sola lista inteligente con un diseño premium y móvil-first.
 
-First, run the development server:
+## 🚀 Despliegue en Vercel
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
-```
+Este proyecto está listo para ser desplegado en Vercel. Una vez conectado tu repositorio de GitHub, deberás configurar las siguientes variables de entorno:
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+### 1. Base de Datos (Supabase / Postgres)
+- `DATABASE_URL`: Tu cadena de conexión de PostgreSQL.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+### 2. Autenticación (Google Cloud Console)
+Configura un proyecto en [Google Cloud Console](https://console.cloud.google.com/) con el "OAuth Consent Screen" y crea las credenciales:
+- `GOOGLE_CLIENT_ID`: ID de cliente de OAuth 2.0.
+- `GOOGLE_CLIENT_SECRET`: Secreto de cliente.
+- `NEXTAUTH_SECRET`: Una cadena aleatoria (puedes usar `openssl rand -base64 32`).
+- `NEXTAUTH_URL`: La URL de tu sitio en Vercel (ej: `https://vuestra-app.vercel.app`).
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+### 3. Google Classroom API
+Debes habilitar la API de **Google Classroom** en tu proyecto de Google Cloud y asegurarte de que el usuario que inicia sesión tenga los siguientes permisos (scopes) configurados en el consentimiento:
+- `classroom.courses.readonly`
+- `classroom.coursework.me.readonly`
+- `classroom.rosters.readonly`
 
-## Learn More
+## ✨ Características
 
-To learn more about Next.js, take a look at the following resources:
+- **Dashboard Unificado**: Lista única de tareas ordenadas por fecha de entrega.
+- **Sincronización Automática**: Al iniciar sesión con Google se cargan tus clases y deberes.
+- **Gestión Manual**: Añade tareas que no estén en Classroom de forma sencilla.
+- **Diseño Responsive**: Optimizado para dispositivos móviles y tablets.
+- **Interfaz Premium**: Animaciones fluidas, modo oscuro y estética cuidada.
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+## 🛠️ Tecnologías
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+- **Framework**: Next.js 14 (App Router)
+- **Lenguaje**: TypeScript
+- **Estilos**: Tailwind CSS 4.0
+- **Base de Datos**: Prisma ORM + PostgreSQL
+- **Autenticación**: NextAuth.js

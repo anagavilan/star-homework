@@ -25,6 +25,8 @@ export const viewport: Viewport = {
   userScalable: false,
 };
 
+import { Providers } from "@/components/Providers";
+
 export default function RootLayout({
   children,
 }: Readonly<{
@@ -33,7 +35,7 @@ export default function RootLayout({
   return (
     <html lang="es" className={`${inter.variable} h-full antialiased`}>
       <body className="min-h-full bg-background text-foreground font-sans">
-        {children}
+        <Providers>{children}</Providers>
       </body>
     </html>
   );
